@@ -112,13 +112,20 @@ insertByWith cmp ins (b:bs) a = if cmp a b then b':bs else b:bs'
 
 -- Add a transition
 addTrans :: Eq n => Gemia n -> GemiaTrans n -> Gemia n
-addTrans g t = TransitionSystem (start g) (insertByWith cmp ins (trans g) t)
-  where cmp = (==) `on` source 
-        ins x y = TransitionSet (source x) (status x) (((++) `on` actions) x y)
+addTrans g t = g { trans = trans' }
+  where 
+    trans' = foldl addNode (insertByWith cmp ins (trans g) t) newnodes
+    newnodes = concatMap targets $ actions t
+    addNode ts n = insertByWith cmp ins ts (TransitionSet n normalStatus [])
+    cmp      = (==) `on` source 
+    ins x y  = TransitionSet (source x) (status x) (((++) `on` actions) x y)
 
 -- Make a gemia from initial state and list of transitions
 makeGemia :: Eq n => Node n -> [GemiaTrans n] -> Gemia n
 makeGemia i = foldl addTrans (TransitionSystem i [])
+
+-- Improved version of makeGemia
+-- Make a gemia from initial state and list of transitions
 
 -- Make gemia tail
 makeTail :: Modality -> IOType -> GemiaLabel -> [Node n] -> GemiaTail n
@@ -349,9 +356,7 @@ rprod = metaprod rprodTS extend
     co     = const Optional
 
 -- local refinement product
--- TODO: because states with no transitions are not listed a sources,
--- TODO: rpeodTS is incomplete on such states (such states should be
--- TODO: listed!)
+-- TODO: This is incorrect for disjunctive transitions
 rprodTS :: Eq n => GemiaTrans n -> GemiaTrans n -> GemiaTrans n
 rprodTS tsA tsB = TransitionSet sourceAB statusAB actsAB
   where
