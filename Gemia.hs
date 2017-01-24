@@ -4,7 +4,7 @@
 {- |
 Module      :  $Header$ 
 Description :  Implements Generalized Modal Interface Automata
-Copyright   :  (c) 2013-2015 Sascha Fendrich
+Copyright   :  (c) 2013-2016 Sascha Fendrich
 License     :  GPL-3
 
 Maintainer  :  sascha.fendrich@uni-bamberg.de
@@ -67,7 +67,7 @@ rmEmptyTails :: TransitionSet n a -> TransitionSet n a
 rmEmptyTails ts = TransitionSet (source ts) (status ts) actions'
   where actions' = filter (not . null . targets) (actions ts)
 
--- An action has a modality, a IO-type and a label
+-- An action has a modality, an IO-type and a label
 -- TODO: Action is a too general name for this
 data Action m k l = Action { modality::m, ioType::k, label::l } deriving (Show)
 
@@ -87,13 +87,15 @@ nprod = Branch
 -- All pairs of nodes
 npairs = makePairsBy nprod
 
---setErrorState :: TransitionSet n a -> TransitionSet n a
---setErrorState t = TransitionSet (start t) newStatus (actions t)
--- where newStatus = Status True (incons $ status t)
+setErrorStatus :: TransitionSet n a -> TransitionSet n a
+setErrorStatus t = TransitionSet (source t) newStatus (actions t)
+  where newStatus = Status True (incons $ status t)
 
---setErrorStates :: TransitionSystem n a -> [n] -> TransitionSystem n a
---setErrorStates t ns = TransitionSystem (start t) newTransitions
---  where newTransitions = 
+setErrorStates :: (Eq n) => TransitionSystem n a -> [n] -> TransitionSystem n a
+setErrorStates t ns = TransitionSystem (start t) newTransitions
+  where 
+    newTransitions  = map changeStatus (trans t)
+    changeStatus tr = if (source tr) `elem` ns then setErrorStatus tr else tr
 
 
 -- General type for modal input-output transition systems
@@ -124,8 +126,9 @@ addTrans g t = g { trans = trans' }
 makeGemia :: Eq n => Node n -> [GemiaTrans n] -> Gemia n
 makeGemia i = foldl addTrans (TransitionSystem i [])
 
--- Improved version of makeGemia
--- Make a gemia from initial state and list of transitions
+-- Make a gemia from initial state, list of transitions and list of error states
+makeGemiaErr :: Eq n => Node n -> [GemiaTrans n] -> [Node n] -> Gemia n
+makeGemiaErr i ts = setErrorStates (foldl addTrans (TransitionSystem i []) ts) 
 
 -- Make gemia tail
 makeTail :: Modality -> IOType -> GemiaLabel -> [Node n] -> GemiaTail n
@@ -158,10 +161,13 @@ instance Dotable n => Dotable (GemiaTrans n) where
   toDot ts = src ++ tls 
     where s    = toDot (source ts)
           src  = if null srcOptions then "" else makeNode s srcOptions
-          srcOptions = incOpt
+          srcOptions = incOpt ++ errOpt
           incOpt = if (incons $ status ts) 
                  then ["color=\"#888888\"","fontcolor=\"#888888\""]
                  else []
+          errOpt = if (err $ status ts)
+                   then ["shape=hexagon"]
+                   else []
           as   = actions ts
           tls  = concatMap (arrow s) as
           arrow s a = if length trgs == 1 
@@ -315,8 +321,8 @@ iquotTS ts1 ts2 = TransitionSet source12 status12 acts12
 
 -- Required and optional actions
 reqOnly, optOnly :: [GemiaTail n] -> [GemiaTail n]
-reqOnly  = filter ((==Required) . modality . action)
-optOnly  = filter ((==Optional) . modality . action)
+reqOnly = filter ((==Required) . modality . action)
+optOnly = filter ((==Optional) . modality . action)
 
 -- conjunctive product with alphabet extension
 cprod :: Eq n => Gemia n -> Gemia n -> Gemia n
@@ -356,17 +362,24 @@ rprod = metaprod rprodTS extend
     co     = const Optional
 
 -- local refinement product
--- TODO: This is incorrect for disjunctive transitions
+-- TODO: The refinement product is incorrect for disjunctive transitions.
+-- TODO: When we construct P<Q and p has disjunctive a-transitions to
+-- TODO: P_i, i=1,...,n, then each transition q-a->Q' will result
+-- TODO: in a DNF condition consisting of Q^P_i clauses à P_i conjuncts.
+-- TODO: Unfolding such a condition via distributivity into a CNF (which
+-- TODO: is what dMTS represents) results in a formula consisting of
+-- TODO: product_i P_i^(Q^P-i) clauses, which is a hyperexponential blowup.
 rprodTS :: Eq n => GemiaTrans n -> GemiaTrans n -> GemiaTrans n
 rprodTS tsA tsB = TransitionSet sourceAB statusAB actsAB
   where
     sourceAB = nprod (source tsA) (source tsB)
     statusAB = Status errorAB inconsAB
-    errorAB  = False -- TODO: implement this properly
+    errorAB  = (err $ status tsA) && (err $ status tsB) 
     inconsAB = (incons $ status tsB) || localIncons
     localIncons = not $ null (filter (null . targets) actsAB)
-    actsAB   = (map (g nprod tsB) (actions tsA)) 
-                 ++ (map (f (flip nprod) tsA) reqsB)
+    actsAB   = (map (g nprod tsB) (actions tsA))     -- required by A  
+                 ++ (map (f (flip nprod) tsA) reqsB) -- required by B
+    reqsA    = reqOnly (actions tsA)
     reqsB    = reqOnly (actions tsB)
     g comb ts2 tail1 = Tail (action tail1){modality = Required}
       [comb trg1 trg2 | trg1<-targets tail1,

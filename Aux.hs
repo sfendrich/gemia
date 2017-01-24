@@ -54,4 +54,12 @@ instance (Dotable n) => Dotable (BTree n) where
 makePairsBy :: (a -> b -> c) -> [a] -> [b] ->[c]
 makePairsBy f as bs = [f a b|a<-as,b<-bs]
 
+-- List of all possible choices of elements from a list of lists
+choices :: [[a]] -> [[a]]
+choices [] = [[]]
+choices (x:xs) = concatMap (\y -> prependAll y (choices xs)) x
+
+-- Prepend an element to each list in a list of list
+prependAll :: a -> [[a]] -> [[a]]
+prependAll x ys = map (x:) ys
 
