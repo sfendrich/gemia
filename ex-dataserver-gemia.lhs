@@ -1,6 +1,6 @@
 % Example application of Gemia to specifying a data server
 %
-% Copyright (C) 2015 Sascha Fendrich
+% Copyright (C) 2015-2017 Sascha Fendrich
 %
 % This file is part of Gemia.
 %
@@ -19,6 +19,7 @@
 
 \documentclass[a4paper]{article}
 
+\usepackage{geometry}
 \usepackage{graphicx}
 \usepackage{hyperref}
 
