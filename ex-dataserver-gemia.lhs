@@ -41,11 +41,16 @@ Gemia is a Haskell%
 \footnote{The Haskell programming language: \url{http://www.haskell.org}}
  module that implements some operations on Modal Interface
 Automata (MIA).  This document describes how the Gemia module is used to
-describe concurrent systems on basis of MIA. The reader is expected to
-have a basic understanding of MIA and functional programming.
-
-One can try the examples given in this document at the command line shell
-respectively the interactive Haskell interpreter GHCi%
+describe concurrent systems on basis of MIA along the dataserver example
+reported in the following article:
+\begin{quote}
+F. Bujtor, S. Fendrich, G. L\"uttgen and W.  Vogler.
+\emph{Nondeterministic Modal Interfaces}. Theoretical Computer Science, 642,
+pp. 24-53, Elsevier, 2016.
+\end{quote}
+The reader is expected to have a basic understanding of MIA and functional
+programming. One may try the examples given in this document at the command
+line shell respectively the interactive Haskell interpreter GHCi%
 \footnote{The Glasgow Haskell Compiler: \url{http://www.haskell.org/ghc/}}
 by typing the commands shown right of the respective prompt. 
 We indicate the prompts as \texttt{shell>} 
